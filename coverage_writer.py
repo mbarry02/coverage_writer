@@ -1,9 +1,9 @@
+import sys
+import os
 from coverage_model.coverage import GridDomain, CRS, AxisTypeEnum, MutabilityEnum, GridShape, SimplexCoverage
 from coverage_model.parameter import ParameterContext, ParameterDictionary 
 from coverage_model.parameter_types import QuantityType, ArrayType 
-import sys
 import datetime
-import os
 import numpy as np
 import collections
 import uuid
@@ -224,24 +224,6 @@ def produce_read():
         finally:
             gevent.sleep(0)
 
-def produce_heartbeat():
-    heartbeat_interval = 1
-    event = gevent.event.Event()
-    while True:
-        try:
-            try:
-                event.wait(timeout=heartbeat_interval)
-            except gevent.Timeout:
-                if Config.debug:
-                    debug("tick", time.time())
-                event.clear()
-        except Exception, e:
-            print "produce exception", e
-            import traceback
-            traceback.print_exc()
-        finally:
-            gevent.sleep(0)
-
 def consume():
     while True:
         try:
@@ -365,7 +347,7 @@ if __name__ == "__main__":
         rw = ReadWriteCoverage()
         rw.create(Config.coverage_path)
         q = gevent.queue.Queue(maxsize=10)
-        gevent.joinall([gevent.spawn(consume), gevent.spawn(produce_write), gevent.spawn(produce_read), gevent.spawn(produce_heartbeat)])
+        gevent.joinall([gevent.spawn(consume), gevent.spawn(produce_write), gevent.spawn(produce_read)])
     except Exception, e:
         print e
         import traceback
