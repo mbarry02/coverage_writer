@@ -189,7 +189,6 @@ def debug(*args):
     if Config.debug:
         print ' '.join(args)
 
-
 def produce_write():
     fast_write_mode = False
     if Config.write_interval is None:
@@ -228,15 +227,18 @@ def consume():
     while True:
         try:
             func = q.get()
-            #print "running", func.__name__
+            if Config.debug:
+                print "running", func.__name__
             func()
-            gevent.sleep(0)
+        except IOError, e:
+            print e
         except Exception, e:
             print "consume exception", e
             import traceback
             traceback.print_exc()
         finally:
             gevent.sleep(0)
+
 
 def init_config():
     #path to coverage
@@ -347,7 +349,11 @@ if __name__ == "__main__":
         rw = ReadWriteCoverage()
         rw.create(Config.coverage_path)
         q = gevent.queue.Queue(maxsize=10)
-        gevent.joinall([gevent.spawn(consume), gevent.spawn(produce_write), gevent.spawn(produce_read)])
+        c = gevent.spawn(consume)
+        w = gevent.spawn(produce_write)
+        r = gevent.spawn(produce_read)
+        gevent.joinall([c,w,r])
+        #gevent.joinall([gevent.spawn(consume), gevent.spawn(produce_write), gevent.spawn(produce_read)])
     except Exception, e:
         print e
         import traceback
