@@ -164,7 +164,7 @@ class ReadWriteCoverage(object):
         seed = int(self.seed_deque[0])
         nt = (seed+1)*self.data_factor
         debug("inserting timesteps", nt)
-        self.cov.insert_timesteps(nt)
+        self.cov.insert_timesteps(nt, oob=False)
         self._write_floats_to_cov(nt, seed)
         self.seed_deque.rotate(1)        
         self.size = self.size + nt
@@ -201,11 +201,12 @@ def produce_write():
                 q.put(rw.write)
                 event.clear()
             else:
-                q.put(rw.write)
+                q.put(rw.write, timeout=5)
         except Exception, e:
             print "produce write exception", e
             import traceback
             traceback.print_exc()
+            return
         finally:
             gevent.sleep(0)
 
@@ -214,12 +215,13 @@ def produce_read():
     while True:
         try:
             event.wait(timeout=Config.read_interval)
-            q.put(rw.read)
+            q.put(rw.read, timeout=5)
             event.clear()
         except Exception, e:
             print "produce read exception", e
             import traceback
             traceback.print_exc()
+            return
         finally:
             gevent.sleep(0)
 
@@ -232,6 +234,9 @@ def consume():
             func()
         except IOError, e:
             print e
+            import traceback
+            traceback.print_exc()
+            return
         except Exception, e:
             print "consume exception", e
             import traceback
@@ -342,22 +347,34 @@ def parse_config():
                 pass
 
 if __name__ == "__main__":
+    
+    def write_exception(greenlet):
+        print "write",greenlet, "dead"
+    def read_exception(greenlet):
+        print "read",greenlet, "dead"
+    def consume_exception(greenlet):
+        print "consume",greenlet, "dead"
+    
     init_config()
     parse_config()
     print "using config: ", config()
     try:
         rw = ReadWriteCoverage()
         rw.create(Config.coverage_path)
-        q = gevent.queue.Queue(maxsize=10)
+        q = gevent.queue.JoinableQueue(maxsize=10)
         c = gevent.spawn(consume)
+        c.link(consume_exception)
         w = gevent.spawn(produce_write)
+        w.link(write_exception)
         r = gevent.spawn(produce_read)
-        gevent.joinall([c,w,r])
-        #gevent.joinall([gevent.spawn(consume), gevent.spawn(produce_write), gevent.spawn(produce_read)])
+        r.link(read_exception)
+        greenlets = [c, r, w]
+        gevent.joinall(greenlets)
     except Exception, e:
         print e
         import traceback
         traceback.print_exc()
     finally:
+        gevent.killall(greenlets)
         rw.destroy()
         rw.cleanup()
