@@ -267,7 +267,7 @@ def init_config():
 
 def parse_config():
     short_names = "hp:r:w:m:"
-    long_names = ["help=", "path=", "read_interval=", "write_interval=","mem_write_interval=","mem_data_depth=","data_factor=","disk_path=","rebuild_percentage=", "mode="]
+    long_names = ["help", "path=", "read_interval=", "write_interval=","mem_write_interval=","mem_data_depth=","data_factor=","disk_path=","rebuild_percentage=", "mode="]
     
     try:
         opts, args = getopt.getopt(sys.argv[1:],short_names,long_names)
